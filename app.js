@@ -37,6 +37,7 @@ var express     = require('express'),
     crypto      = require('crypto'),
     clone       = require('clone'),
     redis       = require('redis'),
+	md			= require('marked'),
     RedisStore  = require('connect-redis')(express),
     server;
 
@@ -91,7 +92,7 @@ if(config.redis) {
 
     db.on("error", function(err) {
         if (config.debug) {
-            console.log("Error " + err);
+            console.log("Redis Error " + err);
         }
     });
 }
@@ -340,6 +341,10 @@ function oauth2(req, res, next){
             db.expire(key + ':apiKey', 1209600000);
             db.expire(key + ':apiSecret', 1209600000);
             db.expire(key + ':callbackURL', 1209600000);
+			
+	        if (config.debug) {
+				console.log('accessURL: ' + accessURL);
+	        }
 
             //client_credentials w/Authorization header
             oa._request(
@@ -350,7 +355,8 @@ function oauth2(req, res, next){
                 '',
                 function(error, data, response) {
                     if (error) {
-                        res.send("Error getting OAuth access token : " + util.inspect(error), 500);
+                        console.log("Error getting OAuth access token : " + util.inspect(error));
+						res.send("Error getting OAuth access token : " + util.inspect(error), 500);	
                     }
                     else {
                         var results;
@@ -362,23 +368,41 @@ function oauth2(req, res, next){
                         }
                         var oauth2access_token = results["access_token"];
                         var oauth2refresh_token = results["refresh_token"];
+						
 
                         if (config.debug) {
                             console.log('results: ' + util.inspect(results));
                         }
-                        db.mset(
-                            [
-                                key + ':access_token', oauth2access_token,
-                                key + ':refresh_token', oauth2refresh_token
-                            ],
-                            function(err, results2) {
-                                db.set(key + ':accessToken', oauth2access_token, redis.print);
-                                db.set(key + ':refreshToken', oauth2refresh_token, redis.print);
-                                db.expire(key + ':accessToken', 1209600000);
-                                db.expire(key + ':refreshToken', 1209600000);
-                                res.send({'refresh': callbackURL});
-                            }
-                        );
+						
+						//VRROBZ: Refresh tokens are optional according to RFC 6749 Section 1.5
+						//https://tools.ietf.org/html/rfc6749#section-1.5
+						
+						if((oauth2refresh_token !== undefined) && (oauth2refresh_token !== null)) {
+	                        db.mset(
+	                            [
+	                                key + ':access_token', oauth2access_token,
+	                                key + ':refresh_token', oauth2refresh_token
+	                            ],
+	                            function(err, results2) {
+	                                db.set(key + ':accessToken', oauth2access_token, redis.print);
+	                                db.set(key + ':refreshToken', oauth2refresh_token, redis.print);
+	                                db.expire(key + ':accessToken', 1209600000);
+	                                db.expire(key + ':refreshToken', 1209600000);
+	                                res.send({'refresh': callbackURL});
+	                            }
+	                        );
+						} else {
+	                        db.mset(
+	                            [
+	                                key + ':access_token', oauth2access_token
+	                            ],
+	                            function(err, results2) {
+	                                db.set(key + ':accessToken', oauth2access_token, redis.print);
+	                                db.expire(key + ':accessToken', 1209600000);
+	                                res.send({'accessToken': oauth2access_token});
+	                            }
+	                        );
+						}
                     }
                 }
             )
@@ -1150,6 +1174,15 @@ app.get('/', function(req, res) {
     });
 });
 
+// API shortname, all lowercase
+//RZ Hardcoding this for AB Inbev
+app.get('/:api([^\.]+)', function(req, res) {
+//app.get('/', function(req, res) {
+    req.params.api=req.params.api.replace(/\/$/,'');
+	//req.params.api='abinbev';
+    res.render('api', {md: md});
+});
+
 // Process the API request
 app.post('/processReq', processRequest, function(req, res) {
     var result = {
@@ -1186,11 +1219,7 @@ app.post('/upload', function(req, res) {
   res.redirect('back');
 });
 
-// API shortname, all lowercase
-app.get('/:api([^\.]+)', function(req, res) {
-    req.params.api=req.params.api.replace(/\/$/,'');
-    res.render('api');
-});
+
 
 // Only listen on $ node app.js
 

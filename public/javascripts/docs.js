@@ -172,6 +172,9 @@
                 else if (result.refresh) {
                     window.open(result.refresh,"_blank","height=900,width=800,menubar=0,resizable=1,scrollbars=1,status=0,titlebar=0,toolbar=0");
                 }
+				else if (result.accessToken) {
+					livedocs.authSuccess();
+				}
                 else {
                     window.location.reload();
                 }
