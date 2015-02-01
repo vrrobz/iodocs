@@ -3,6 +3,7 @@ node_modules/*
 config.json
 logs/*
 pids/*
+public/data/abinbev.json
 
 # Ignore project files
 .idea/*
