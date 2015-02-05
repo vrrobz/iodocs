@@ -220,7 +220,10 @@ $(document).ready(function() {
                     //Sets description to "No description" if none provided
                     if (!paramReference.description && !paramReference.$ref) {
                         paramReference.description = "No description.";
-                    }
+                    } else {
+                        //Here's where you add the markdown parser
+						paramReference.description = marked(paramReference.description);
+					}
 
                     //Stores the options for each parameter
                     optionsFields[parameter] = parameterOptions
@@ -243,7 +246,7 @@ $(document).ready(function() {
                         "templates": {
                             "controlFieldMessage": '<div></div>',
                             "controlFieldLabel": '{{if options.label}}<div class="col-name body {{if options.labelClass}}${options.labelClass}{{/if}}">${options.label}</div>{{/if}}',
-                            "controlFieldHelper": '{{if options.helper}}<div class="col-description body {{if options.helperClass}}${options.helperClass}{{/if}} alpaca-controlfield-helper-text">${options.helper}</div>{{/if}}',
+                            "controlFieldHelper": '{{if options.helper}}<div class="col-description body {{if options.helperClass}}${options.helperClass}{{/if}} alpaca-controlfield-helper-text">{{html options.helper}}</div>{{/if}}',
                             "controlFieldLocation": '<div class="location body alpaca-data-label">${ this.data.schema.location }</div>',
                             "controlFieldType": '<div class="col-type body alpaca-data-label">${ this.data.schema.type }</div>',
                             "controlFieldContainer": '<div class="col-parameter body"></div>{{html this.html}}',
